@@ -1,34 +1,88 @@
 const Booking = require('../models/Booking');
 
-// 1. Booking Create Karna (User karega)
+// ==================================================
+// 1. CUSTOMER: BOOKING CREATE KARNA
+// ==================================================
 const createBooking = async (req, res) => {
     try {
         if (!req.user || !req.user._id) {
             return res.status(401).json({ message: 'User not authenticated' });
         }
 
-        let { service, issue, price, providerId } = req.body; 
+        // ✅ Frontend se naya data receive kar rahe hain
+        const { service, category, items, issue, address, date, time, location } = req.body; 
 
-        // Start OTP generate kar rahe hain (Provider ko dikhane ke liye)
+        // Start OTP generate (Security)
         const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
 
         const booking = await Booking.create({
             user: req.user._id,        
-            provider: providerId || "659c3d42f8c5c72d8e4f1a2b", // Backup ID
+            // provider: abhi null rahega (Open Job)
             service,
+            category, // e.g., "Plumber" (Zaroori hai filtering ke liye)
+            items,    // List of items (Split AC x2)
             issue,
-            price,
-            startOtp, // 👈 Save Start OTP
-            status: 'pending'
+            address,  // 📍 Address Zaroori hai
+            date,
+            time,
+            location, // Lat/Lng for Map
+            startOtp,
+            status: 'pending' // Default Pending
         });
 
         res.status(201).json(booking);
+    } catch (error) {
+        console.error("Booking Create Error:", error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+// ==================================================
+// 2. PROVIDER: PENDING REQUESTS DEKHNA (NEW ✅)
+// ==================================================
+// Ye function Provider ko wo jobs dikhayega jo 'pending' hain aur uski category ki hain
+const getProviderRequests = async (req, res) => {
+    try {
+        const providerCategory = req.user.category; // Provider ki category (e.g. Plumber)
+
+        const requests = await Booking.find({
+            status: 'pending',        // Jo abhi tak accept nahi hui
+            category: providerCategory // Sirf uski category ki jobs
+        })
+        .populate('user', 'name address phone') // User details dikhao
+        .sort({ createdAt: -1 });
+
+        res.status(200).json(requests);
     } catch (error) {
         res.status(500).json({ message: 'Server Error' });
     }
 };
 
-// 2. Status Update (Accept/Start/Complete Logic)
+// ==================================================
+// 3. PROVIDER: JOB ACCEPT KARNA (NEW ✅)
+// ==================================================
+const acceptJob = async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+
+        if (!booking) return res.status(404).json({ message: "Booking not found" });
+        if (booking.status !== 'pending') return res.status(400).json({ message: "Job already taken" });
+
+        // Assign Provider & Update Status
+        booking.provider = req.user._id;
+        booking.status = 'accepted';
+        
+        await booking.save();
+        res.status(200).json({ message: "Job Accepted!", booking });
+
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+// ==================================================
+// 4. STATUS UPDATE (Start / Complete Logic)
+// ==================================================
 const updateJobStatus = async (req, res) => {
     try {
         const { status } = req.body;
@@ -38,12 +92,12 @@ const updateJobStatus = async (req, res) => {
 
         booking.status = status;
 
-        // 🛠️ Agar kaam shuru (in_progress) ho raha hai, toh Completion OTP generate karo
-        if (status === 'in_progress') {
+        // 🛠️ Kaam Shuru -> End OTP Generate
+        if (status === 'started') {
             booking.endOtp = Math.floor(1000 + Math.random() * 9000).toString();
         }
 
-        // 🛡️ Agar kaam khatam (completed) ho raha hai, toh Warranty banao
+        // 🛡️ Kaam Khatam -> Warranty Generate
         if (status === 'completed') {
             booking.warrantyId = `KS-${Math.floor(100000 + Math.random() * 900000)}`;
             const expiry = new Date();
@@ -58,7 +112,9 @@ const updateJobStatus = async (req, res) => {
     }
 };
 
-// 3. OTP Verification (Flutter App ke liye)
+// ==================================================
+// 5. OTP VERIFICATION
+// ==================================================
 const verifyOtp = async (req, res) => {
     try {
         const { otp, type } = req.body; // type: 'start' or 'end'
@@ -78,7 +134,9 @@ const verifyOtp = async (req, res) => {
     }
 };
 
-// 4. Submit Rating (Job khatam hone ke baad)
+// ==================================================
+// 6. RATING & FEEDBACK
+// ==================================================
 const submitRating = async (req, res) => {
     try {
         const { rating, review } = req.body;
@@ -93,7 +151,9 @@ const submitRating = async (req, res) => {
     }
 };
 
-// 5. Get Warranty Details
+// ==================================================
+// 7. GET WARRANTY
+// ==================================================
 const getWarranty = async (req, res) => {
     try {
         const booking = await Booking.findById(req.params.id).populate('provider', 'name');
@@ -110,37 +170,42 @@ const getWarranty = async (req, res) => {
     }
 };
 
-// --- Purane Functions ---
+// ==================================================
+// 8. LISTING FUNCTIONS (My Bookings)
+// ==================================================
 const getMyBookings = async (req, res) => {
     try {
-        const bookings = await Booking.find({ user: req.user._id }).populate('provider', 'name phone').sort({ date: -1 });
+        const bookings = await Booking.find({ user: req.user._id })
+            .populate('provider', 'name phone')
+            .sort({ createdAt: -1 }); // Newest first
         res.status(200).json(bookings);
     } catch (error) { res.status(500).json({ message: 'Server Error' }); }
 };
 
+// Provider ke 'Accepted' jobs
 const getProviderBookings = async (req, res) => {
     try {
-        const bookings = await Booking.find({ provider: req.user._id }).populate('user', 'name phone address').sort({ date: -1 });
+        const bookings = await Booking.find({ provider: req.user._id })
+            .populate('user', 'name phone address')
+            .sort({ createdAt: -1 });
         res.status(200).json(bookings);
     } catch (error) { res.status(500).json({ message: 'Server Error' }); }
 };
 
-// =======================================================
-// 🎥 NEW VIDEO FEATURES (SHOWCASE & REELS)
-// =======================================================
-
-// A. HOME SCREEN: Sirf Top Quality Videos (Featured)
+// ==================================================
+// 🎥 VIDEO FEATURES (SHOWCASE & REELS)
+// ==================================================
 const getFeaturedVideos = async (req, res) => {
     try {
         const videos = await Booking.find({
             status: 'completed',
-            providerVideo: { $ne: null }, // Video honi chahiye
-            rating: { $gte: 4.5 }         // ⭐ Sirf 4.5 se upar wali (Best Work)
+            providerVideo: { $ne: null },
+            rating: { $gte: 4.5 }
         })
         .select('providerVideo service rating review provider')
         .populate('provider', 'name')
-        .sort({ rating: -1 }) // Highest rating pehle
-        .limit(5); // Sirf top 5 dikhayenge
+        .sort({ rating: -1 })
+        .limit(5);
 
         res.status(200).json(videos);
     } catch (error) {
@@ -148,17 +213,16 @@ const getFeaturedVideos = async (req, res) => {
     }
 };
 
-// B. REELS SCREEN: Sabki Videos (Scrollable Feed)
 const getAllVideoFeed = async (req, res) => {
     try {
         const videos = await Booking.find({
             status: 'completed',
-            providerVideo: { $ne: null }, // Video honi chahiye
-            rating: { $gte: 3 }           // 3 Star se upar sab chalega (Providers happy rahenge)
+            providerVideo: { $ne: null },
+            rating: { $gte: 3 }
         })
         .select('providerVideo service rating review provider date')
         .populate('provider', 'name') 
-        .sort({ date: -1 }); // Nayi video sabse pehle
+        .sort({ createdAt: -1 });
 
         res.status(200).json(videos);
     } catch (error) {
@@ -169,11 +233,13 @@ const getAllVideoFeed = async (req, res) => {
 module.exports = { 
     createBooking, 
     getMyBookings, 
-    getProviderBookings, 
+    getProviderRequests, // 👈 New: Pending Jobs
+    getProviderBookings, // 👈 Existing: Accepted Jobs
+    acceptJob,           // 👈 New: Accept Logic
     updateJobStatus, 
     verifyOtp, 
     submitRating, 
     getWarranty,
-    getFeaturedVideos, // 👈 New Export
-    getAllVideoFeed    // 👈 New Export
+    getFeaturedVideos,
+    getAllVideoFeed
 };
