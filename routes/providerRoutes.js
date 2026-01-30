@@ -18,21 +18,58 @@ const { protect } = require('../middleware/authMiddleware');
 // 🛠️ PROVIDER ROUTES
 // ==========================================
 
-// 1️⃣ Auth Routes (OTP Login)
+// ✅ 1. REGISTER ROUTE (Jo miss ho gaya tha)
+router.post('/register', async (req, res) => {
+    const { name, email, phone, password, category } = req.body;
+
+    try {
+        // Check if user exists
+        let provider = await Provider.findOne({ email });
+        if (provider) {
+            return res.status(400).json({ message: "User already exists" });
+        }
+
+        // Create new Provider
+        provider = new Provider({
+            name,
+            email,
+            phone,
+            password,
+            category,
+            walletBalance: 0,
+            totalEarnings: 0,
+            bankDetails: {}, // Empty start mein
+            transactions: []
+        });
+
+        await provider.save();
+
+        res.status(201).json({ 
+            message: "✅ Provider Registered Successfully!", 
+            providerId: provider._id 
+        });
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server Error");
+    }
+});
+
+// 2️⃣ Auth Routes (OTP Login)
 router.post('/send-otp', sendOtp);
 router.post('/login', verifyOtp);
 
-// 2️⃣ Profile Routes
+// 3️⃣ Profile Routes
 router.get('/profile', protect, getProviderProfile);
 router.put('/profile', protect, updateProviderProfile);
 router.put('/update-details', protect, updateProviderProfile);
 
-// 3️⃣ Public Route (Category wise data)
+// 4️⃣ Public Route (Category wise data)
 router.get('/category/:category', getProvidersByCategory);
 
 
 // ==========================================
-// 💰 4. WALLET & EARNINGS ROUTE
+// 💰 5. WALLET & EARNINGS ROUTE
 // ==========================================
 router.get('/wallet/:id', async (req, res) => {
     try {
@@ -56,7 +93,7 @@ router.get('/wallet/:id', async (req, res) => {
 
 
 // ==========================================
-// 🏦 5. BANK DETAILS UPDATE ROUTE
+// 🏦 6. BANK DETAILS UPDATE ROUTE
 // ==========================================
 router.put('/update-bank/:id', async (req, res) => {
     const { bankName, accountNumber, ifscCode, holderName } = req.body;
@@ -85,7 +122,7 @@ router.put('/update-bank/:id', async (req, res) => {
 
 
 // ==========================================
-// 🟢 6. ONLINE/OFFLINE TOGGLE ROUTE
+// 🟢 7. ONLINE/OFFLINE TOGGLE ROUTE
 // ==========================================
 router.put('/status', protect, async (req, res) => {
     try {
