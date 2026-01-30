@@ -2,12 +2,15 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const Booking = require('../models/Booking'); // Database Model
-const { protect } = require('../middleware/authMiddleware'); // Auth Check
+const Booking = require('../models/Booking'); 
 
-// 👇 Controller imports
+// 👇 Controller functions import
 const { 
-    getProviderBookings,
+    createBooking,
+    getMyBookings,
+    getProviderRequests,
+    getProviderBookings, // Accepted Jobs
+    acceptJob,
     updateJobStatus, 
     verifyOtp,       
     submitRating, 
@@ -15,6 +18,9 @@ const {
     getFeaturedVideos, 
     getAllVideoFeed    
 } = require('../controllers/bookingController');
+
+// Middleware
+const { protect } = require('../middleware/authMiddleware');
 
 // =============================================
 // 🎥 VIDEO UPLOAD SETUP (MULTER)
@@ -29,106 +35,48 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
+
+// =========================================================
+// 🚀 MAIN ROUTES (Linked to Controller)
+// =========================================================
+
+// 1. CREATE & GET BOOKINGS
+router.post('/', protect, createBooking);      // ✅ User creates booking (OTP Auto-generated)
+router.get('/my-bookings', protect, getMyBookings); // ✅ User sees history
+
+// 2. PROVIDER SPECIFIC ROUTES
+router.get('/provider-requests', protect, getProviderRequests); // ✅ New Jobs (Pending)
+router.get('/provider-bookings', protect, getProviderBookings); // ✅ My Jobs (Accepted)
+
+// 3. JOB ACTIONS
+router.put('/:id/accept', protect, acceptJob);       // ✅ Accept Job
+router.put('/:id/status', protect, updateJobStatus); // ✅ Start/Complete Job
+
+// 4. SECURITY (OTP)
+router.post('/:id/verify-otp', protect, verifyOtp);  // ✅ Verify OTP
+
+// 5. EXTRAS (Rating & Warranty)
+router.post('/:id/rate', protect, submitRating);
+router.get('/warranty/:id', protect, getWarranty);
+
+
 // =============================================
-// 🏠 PUBLIC ROUTES
+// 📹 PUBLIC VIDEO ROUTES
 // =============================================
 router.get('/featured-videos', getFeaturedVideos); 
 router.get('/video-feed', getAllVideoFeed);
 
-// =========================================================
-// 🚀 MAIN BIDDING & BOOKING ROUTES
-// =========================================================
-
-// 1. GET ALL BOOKINGS
-router.get('/', protect, async (req, res) => {
-    try {
-        const bookings = await Booking.find({ user: req.user.id })
-                                      .populate('provider', 'name image rating') 
-                                      .sort({ date: -1 }); 
-        res.json(bookings);
-    } catch (err) {
-        console.error("Fetch Error:", err.message);
-        res.status(500).send('Server Error');
-    }
-});
-
-// 2. CREATE NEW BOOKING (✅ FIXED: Status lowercase kar diya)
-router.post('/', protect, async (req, res) => {
-    try {
-        const { service, issue, price, providerId, address, itemsSummary, date, time } = req.body;
-
-        // 🛠️ FIX: String ko Array mein convert
-        let formattedItems = [];
-        if (itemsSummary) {
-            formattedItems.push({
-                title: itemsSummary, 
-                qty: 1               
-            });
-        }
-
-        const newBooking = new Booking({
-            user: req.user.id,
-            service,
-            issue,
-            price, 
-            provider: providerId || null, 
-            address,      
-            items: formattedItems, 
-            scheduledDate: date,
-            scheduledTime: time,
-            // 👇 MAIN FIX: 'Pending' -> 'pending', 'Bidding' -> 'bidding'
-            status: providerId ? 'pending' : 'bidding' 
-        });
-
-        const booking = await newBooking.save();
-        res.status(201).json(booking);
-    } catch (err) {
-        console.error("Create Booking Error:", err.message);
-        res.status(500).send('Server Error: ' + err.message);
-    }
-});
-
-// 3. UPDATE BOOKING
-router.put('/:id', protect, async (req, res) => {
-    try {
-        const { providerId, price, status } = req.body;
-
-        let booking = await Booking.findById(req.params.id);
-        if (!booking) return res.status(404).json({ msg: 'Booking not found' });
-
-        // Update details
-        booking.provider = providerId; 
-        booking.price = price;        
-        booking.status = status || 'accepted'; 
-
-        await booking.save(); 
-        res.json(booking); 
-
-    } catch (err) {
-        console.error("Update Error:", err.message);
-        res.status(500).send('Server Error');
-    }
-});
 
 // =============================================
-// 🛠️ OTHER FEATURES
+// 📊 PROVIDER STATS (Inline Logic for Dashboard)
 // =============================================
-
-router.post('/:id/rate', protect, submitRating);
-router.get('/warranty/:id', protect, getWarranty);
-
-// Provider Specific
-router.get('/provider-requests', protect, getProviderBookings);
-router.put('/:id/status', protect, updateJobStatus); 
-router.post('/:id/verify-otp', protect, verifyOtp);
-
-// 👇 PROVIDER DASHBOARD STATS
 router.get('/provider-stats', protect, async (req, res) => {
     try {
+        // Sirf Completed Jobs uthao
         const bookings = await Booking.find({ 
             provider: req.user.id, 
             status: 'completed' 
-        }).populate('user', 'name image');
+        }).populate('user', 'name');
 
         let totalRating = 0;
         let ratedBookings = 0;
@@ -139,6 +87,7 @@ router.get('/provider-stats', protect, async (req, res) => {
                 totalRating += b.rating;
                 ratedBookings++;
             }
+            // Agar video hai to gallery mein dalo
             if (b.providerVideo) {
                 workGallery.push({
                     video: b.providerVideo,
@@ -156,7 +105,7 @@ router.get('/provider-stats', protect, async (req, res) => {
             totalJobs: bookings.length,
             averageRating: avgRating,
             totalReviews: ratedBookings,
-            gallery: workGallery.reverse()
+            gallery: workGallery.reverse() // Latest pehle
         });
 
     } catch (err) {
@@ -165,10 +114,14 @@ router.get('/provider-stats', protect, async (req, res) => {
     }
 });
 
-// 👇 UPLOAD VIDEO ROUTE
+
+// =============================================
+// 📤 VIDEO UPLOAD ROUTE
+// =============================================
 router.post('/:id/upload-video', protect, upload.single('video'), async (req, res) => {
     try {
         const bookingId = req.params.id;
+        // Server URL create karo
         const videoUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`; 
         
         const booking = await Booking.findById(bookingId);
