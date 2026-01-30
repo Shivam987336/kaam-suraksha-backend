@@ -1,15 +1,14 @@
 const mongoose = require('mongoose');
 
-const bookingSchema = mongoose.Schema({
-    // 1. Customer (User) - Ye to shuru mein hi chahiye
+const bookingSchema = new mongoose.Schema({
+    // 1. Customer (User)
     user: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'User', 
         required: true 
     },
 
-    // 2. Mistri (Provider) - ❌ FIXED: 'required: true' hata diya
-    // Kyunki booking create karte time Provider nahi pata hota (Bidding System)
+    // 2. Mistri (Provider) - Initially Empty (For Bidding)
     provider: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Provider' 
@@ -18,8 +17,7 @@ const bookingSchema = mongoose.Schema({
     // Main Category (e.g., AC Repair)
     service: { type: String, required: true },
 
-    // ✅ NEW: Selected Items List (e.g., Split AC x2, Window AC x1)
-    // Jo tune pichhle screen par select kiya tha, wo yahan save hoga
+    // ✅ SELECTED ITEMS (e.g., Split AC x2)
     items: [
         {
             title: String, // Split AC
@@ -27,16 +25,25 @@ const bookingSchema = mongoose.Schema({
         }
     ],
     
-    // Issue Description (User jo likhega)
+    // Issue Description
     issue: { type: String }, 
     
-    // Price (Abhi 0 rahega, Bidding ke baad update hoga)
+    // 📍 ADDRESS & TIME (Added for Provider)
+    address: { type: String, required: true },
+    location: {
+        lat: Number,
+        lng: Number
+    },
+    scheduledDate: { type: String }, // e.g., "12 Aug"
+    scheduledTime: { type: String }, // e.g., "10:00 AM"
+
+    // Price (Bidding ke baad update hoga)
     price: { type: Number, default: 0 },
     
     // Status
     status: { 
         type: String, 
-        enum: ['pending', 'bidding', 'accepted', 'in_progress', 'completed', 'cancelled'],
+        enum: ['pending', 'bidding', 'accepted', 'started', 'completed', 'cancelled'],
         default: 'pending' 
     },
 
@@ -55,7 +62,7 @@ const bookingSchema = mongoose.Schema({
     // 🎥 VIDEO PROOF
     providerVideo: { type: String }, 
 
-    date: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model('Booking', bookingSchema);
