@@ -9,7 +9,7 @@ const {
     createBooking,
     getMyBookings,
     getProviderRequests,
-    getProviderBookings, // Accepted Jobs
+    getProviderBookings, 
     acceptJob,
     updateJobStatus, 
     verifyOtp,       
@@ -20,61 +20,62 @@ const {
 } = require('../controllers/bookingController');
 
 // Middleware
-const { protect } = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/authMiddleware'); // Path check kar lena
 
 // =============================================
 // 🎥 VIDEO UPLOAD SETUP (MULTER)
 // =============================================
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/'); 
+        cb(null, 'uploads/'); // Uploads folder mein save hoga
     },
     filename: (req, file, cb) => {
-        cb(null, Date.now() + path.extname(file.originalname)); 
+        // Unique filename: fieldname-date.mp4
+        cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname)); 
     }
 });
-const upload = multer({ storage: storage });
 
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 50000000 } // Limit: 50MB Video
+});
 
 // =========================================================
-// 🚀 MAIN ROUTES (Linked to Controller)
+// 🚀 MAIN ROUTES
 // =========================================================
 
 // 1. CREATE & GET BOOKINGS
-router.post('/', protect, createBooking);      // ✅ User creates booking (OTP Auto-generated)
-router.get('/my-bookings', protect, getMyBookings); // ✅ User sees history
+router.post('/', protect, createBooking);      
+router.get('/my-bookings', protect, getMyBookings); 
 
-// 2. PROVIDER SPECIFIC ROUTES
-router.get('/provider-requests', protect, getProviderRequests); // ✅ New Jobs (Pending)
-router.get('/provider-bookings', protect, getProviderBookings); // ✅ My Jobs (Accepted)
+// 2. PROVIDER SPECIFIC ROUTES (Paths Fixed ✅)
+router.get('/provider/requests', protect, getProviderRequests); // Pending Jobs
+router.get('/provider/accepted', protect, getProviderBookings); // My Jobs
 
 // 3. JOB ACTIONS
-router.put('/:id/accept', protect, acceptJob);       // ✅ Accept Job
-router.put('/:id/status', protect, updateJobStatus); // ✅ Start/Complete Job
+router.put('/:id/accept', protect, acceptJob);       
+router.put('/:id/status', protect, updateJobStatus); 
 
 // 4. SECURITY (OTP)
-router.post('/:id/verify-otp', protect, verifyOtp);  // ✅ Verify OTP
+router.post('/:id/verify-otp', protect, verifyOtp);  
 
 // 5. EXTRAS (Rating & Warranty)
-router.post('/:id/rate', protect, submitRating);
+router.put('/:id/rate', protect, submitRating); // PUT method better for update
 router.get('/warranty/:id', protect, getWarranty);
 
+// =============================================
+// 📹 PUBLIC VIDEO ROUTES (Reels)
+// =============================================
+router.get('/videos/featured', getFeaturedVideos); 
+router.get('/videos/feed', getAllVideoFeed);
 
 // =============================================
-// 📹 PUBLIC VIDEO ROUTES
+// 📊 PROVIDER STATS (Dashboard Logic)
 // =============================================
-router.get('/featured-videos', getFeaturedVideos); 
-router.get('/video-feed', getAllVideoFeed);
-
-
-// =============================================
-// 📊 PROVIDER STATS (Inline Logic for Dashboard)
-// =============================================
-router.get('/provider-stats', protect, async (req, res) => {
+router.get('/provider/stats', protect, async (req, res) => {
     try {
-        // Sirf Completed Jobs uthao
         const bookings = await Booking.find({ 
-            provider: req.user.id, 
+            provider: req.user._id, 
             status: 'completed' 
         }).populate('user', 'name');
 
@@ -87,14 +88,13 @@ router.get('/provider-stats', protect, async (req, res) => {
                 totalRating += b.rating;
                 ratedBookings++;
             }
-            // Agar video hai to gallery mein dalo
             if (b.providerVideo) {
                 workGallery.push({
                     video: b.providerVideo,
                     rating: b.rating || 0,
                     review: b.review || "No Review",
                     customer: b.user ? b.user.name : "Customer",
-                    date: b.date
+                    date: b.createdAt
                 });
             }
         });
@@ -105,7 +105,7 @@ router.get('/provider-stats', protect, async (req, res) => {
             totalJobs: bookings.length,
             averageRating: avgRating,
             totalReviews: ratedBookings,
-            gallery: workGallery.reverse() // Latest pehle
+            gallery: workGallery.reverse()
         });
 
     } catch (err) {
@@ -114,23 +114,23 @@ router.get('/provider-stats', protect, async (req, res) => {
     }
 });
 
-
 // =============================================
-// 📤 VIDEO UPLOAD ROUTE
+// 📤 VIDEO UPLOAD ROUTE (Local Storage)
 // =============================================
 router.post('/:id/upload-video', protect, upload.single('video'), async (req, res) => {
     try {
         const bookingId = req.params.id;
-        // Server URL create karo
+        
+        // Render/Server ka URL generate kar rahe hain
         const videoUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`; 
         
         const booking = await Booking.findById(bookingId);
         if (!booking) return res.status(404).json({ message: "Booking not found" });
 
         booking.providerVideo = videoUrl;
-        
         await booking.save();
-        res.json({ success: true, message: "Work Video Uploaded Successfully!", videoUrl });
+        
+        res.json({ success: true, message: "Work Video Uploaded!", videoUrl });
 
     } catch (error) {
         console.error(error);

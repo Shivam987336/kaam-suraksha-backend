@@ -1,13 +1,14 @@
 const express = require('express');
-const cors = require('cors'); // ✅ CORS hai
+const cors = require('cors'); 
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const path = require('path'); 
+const fs = require('fs');
 
-// Environment Variables Load
+// 1. Environment Variables Load
 dotenv.config();
 
-// Database Connection
+// 2. Database Connection
 connectDB();
 
 const app = express();
@@ -16,41 +17,40 @@ const PORT = process.env.PORT || 5000;
 // ==========================================
 // 🛠️ MIDDLEWARE
 // ==========================================
-app.use(cors()); // ✅ Isse Laptop/Mobile connect honge
-app.use(express.json());
+app.use(cors()); // Flutter/Mobile connectivity ke liye
+app.use(express.json()); // JSON data handle karne ke liye
 
-// 🎥 Uploads folder Public
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// 📁 UPLOADS FOLDER CHECK (Agar folder nahi hai to bana dega)
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir);
+}
 
-// 🕵️‍♂️ Debug Logger
+// 🎥 Uploads folder ko Public banana (Taaki Flutter me Videos dikhein)
+app.use('/uploads', express.static(uploadDir));
+
+// 🕵️‍♂️ Debug Logger (Taki terminal me request dikhe)
 app.use((req, res, next) => {
-    console.log(`\n📡 Request: ${req.method} ${req.url}`);
+    console.log(`📡 Request: ${req.method} ${req.url}`);
     next();
 });
 
 // ==========================================
-// 🔗 REAL ROUTES CONNECTIONS
+// 🔗 ROUTES CONFIGURATION
 // ==========================================
 
-// 👇 1. AUTH ROUTE (YAHAN CHANGE KIYA HAI) ✅
-// Humne 'authRoutes' ki jagah 'providerRoutes' link kar diya
-// Kyunki tune code usi file mein likha hai.
+// Auth & Users
 app.use('/api/auth', require('./routes/providerRoutes')); 
-
-// 2. Users 
 app.use('/api/users', require('./routes/userRoutes'));
 
-// 3. Providers 
+// Providers
 app.use('/api/providers', require('./routes/providerRoutes'));
 
-// 4. Services 
+// Services & Bookings
 app.use('/api/services', require('./routes/serviceRoutes'));
-
-// 5. Bookings
 app.use('/api/bookings', require('./routes/bookingRoutes'));
 
-
-// 🏠 Root Route 
+// 🏠 Root Route
 app.get('/', (req, res) => {
     res.send('🚀 Kaam Suraksha Backend is Running Professionally!');
 });
@@ -58,6 +58,8 @@ app.get('/', (req, res) => {
 // ==========================================
 // 🚀 SERVER START
 // ==========================================
+// '0.0.0.0' zaroori hai Render/Cloud deployment ke liye
 app.listen(PORT, '0.0.0.0', () => { 
     console.log(`✅ Server running on port ${PORT}`);
+    console.log(`📂 Static files available at: http://localhost:${PORT}/uploads/`);
 });
