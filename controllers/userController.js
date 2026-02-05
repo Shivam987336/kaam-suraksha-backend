@@ -6,22 +6,26 @@ const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
-// 1️⃣ SEND OTP (Mock)
+// ==========================================
+// 1. SEND OTP (Mock)
+// ==========================================
 const sendOtp = async (req, res) => {
     console.log(`📨 OTP Request for ${req.body.phone}`);
+    // Real App mein yahan SMS API call hogi
     res.status(200).json({ message: 'OTP sent', otp: '1234', error: false });
 };
 
-// 2️⃣ VERIFY OTP & LOGIN (👉 FIXED FOR ADMIN ACCESS)
+// ==========================================
+// 2. VERIFY OTP & LOGIN (With Admin Hack)
+// ==========================================
 const verifyOtp = async (req, res) => {
-    const { phone, otp } = req.body; // ✅ Ab OTP bhi read kar rahe hain
+    const { phone, otp } = req.body;
     console.log(`🚀 LOGIN HIT: Phone ${phone} | OTP: ${otp}`);
 
     try {
         let user = await User.findOne({ phone });
 
         // 👇 MASTER ADMIN LOGIC (Jugaad)
-        // Agar OTP "admin123" hai, to banda Admin ban jayega
         let role = "user"; 
         if (otp === "admin123") {
             role = "admin";
@@ -33,13 +37,14 @@ const verifyOtp = async (req, res) => {
             user = await User.create({
                 phone,
                 name: role === "admin" ? "Super Admin" : "New User",
-                email: `${phone}@test.com`,
-                role: role, // ✅ Role ab dynamic hai
-                addresses: []
+                email: "", // Khali rakh sakte hain kyunki optional hai
+                role: role, 
+                addresses: [],
+                isOnline: true
             });
         } else {
-            // Agar user pehle se hai aur tune "admin123" dala, to usse Admin bana do
-            if (role === "admin") {
+            // Agar purana user hai aur "admin123" dala, toh upgrade kar do
+            if (role === "admin" && user.role !== "admin") {
                 user.role = "admin";
                 await user.save();
                 console.log("⚡ Existing User Upgraded to Admin!");
@@ -53,9 +58,9 @@ const verifyOtp = async (req, res) => {
             _id: user.id,
             name: user.name,
             phone: user.phone,
-            role: user.role, // ✅ Frontend ko pata chalega ki ye Admin hai
+            role: user.role, 
             token: generateToken(user.id),
-            isNewUser: false 
+            isNewUser: user.name === "New User" 
         });
 
     } catch (error) {
@@ -64,7 +69,9 @@ const verifyOtp = async (req, res) => {
     }
 };
 
-// 3️⃣ USER PROFILE
+// ==========================================
+// 3. GET USER PROFILE
+// ==========================================
 const getUserProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
@@ -75,13 +82,18 @@ const getUserProfile = async (req, res) => {
     }
 };
 
-// 4️⃣ UPDATE PROFILE
+// ==========================================
+// 4. UPDATE PROFILE
+// ==========================================
 const updateUserProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
         if(user) {
             user.name = req.body.name || user.name;
             user.email = req.body.email || user.email;
+            // Image update logic bhi yahan aa sakta hai
+            if(req.body.image) user.image = req.body.image;
+
             const updatedUser = await user.save();
             
             res.json({
@@ -90,6 +102,7 @@ const updateUserProfile = async (req, res) => {
                 name: updatedUser.name,
                 email: updatedUser.email,
                 phone: updatedUser.phone,
+                image: updatedUser.image,
                 token: generateToken(updatedUser._id),
             });
         } else {
@@ -100,7 +113,9 @@ const updateUserProfile = async (req, res) => {
     }
 };
 
-// 5️⃣ ADD ADDRESS
+// ==========================================
+// 5. ADD ADDRESS
+// ==========================================
 const addAddress = async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
@@ -117,7 +132,9 @@ const addAddress = async (req, res) => {
     }
 };
 
-// 6️⃣ DELETE ADDRESS
+// ==========================================
+// 6. DELETE ADDRESS
+// ==========================================
 const deleteAddress = async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
@@ -134,5 +151,10 @@ const deleteAddress = async (req, res) => {
 };
 
 module.exports = { 
-    sendOtp, verifyOtp, getUserProfile, updateUserProfile, addAddress, deleteAddress 
+    sendOtp, 
+    verifyOtp, 
+    getUserProfile, 
+    updateUserProfile, 
+    addAddress, 
+    deleteAddress 
 };

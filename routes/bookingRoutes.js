@@ -1,141 +1,55 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
-const path = require('path');
-const Booking = require('../models/Booking'); 
-
-// 👇 Controller functions import
 const { 
-    createBooking,
-    getMyBookings,
-    getProviderRequests,
-    getProviderBookings, 
-    acceptJob,
-    updateJobStatus, 
-    verifyOtp,       
-    submitRating, 
-    getWarranty,
-    getFeaturedVideos, 
-    getAllVideoFeed    
+    createBooking, 
+    getMyBookings, 
+    placeBid, 
+    acceptBid, 
+    acceptFixedJob, 
+    updateStatus,
+    verifyOtp,      // ✅ Added back
+    submitRating    // ✅ Added back
 } = require('../controllers/bookingController');
 
-// Middleware
-const { protect } = require('../middleware/authMiddleware'); // Path check kar lena
+const authMiddleware = require('../middleware/authMiddleware');
 
-// =============================================
-// 🎥 VIDEO UPLOAD SETUP (MULTER)
-// =============================================
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/'); // Uploads folder mein save hoga
-    },
-    filename: (req, file, cb) => {
-        // Unique filename: fieldname-date.mp4
-        cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname)); 
-    }
-});
+// ==========================================
+// 🏠 CUSTOMER (USER) ROUTES
+// ==========================================
 
-const upload = multer({ 
-    storage: storage,
-    limits: { fileSize: 50000000 } // Limit: 50MB Video
-});
+// 1. Create New Job (Fixed or Bidding)
+router.post('/create', authMiddleware, createBooking);
 
-// =========================================================
-// 🚀 MAIN ROUTES
-// =========================================================
+// 2. Get My Booking History
+router.get('/my-bookings', authMiddleware, getMyBookings);
 
-// 1. CREATE & GET BOOKINGS
-router.post('/', protect, createBooking);      
-router.get('/my-bookings', protect, getMyBookings); 
+// 3. Accept a Bid (For Bidding Jobs)
+router.put('/accept-bid/:bookingId', authMiddleware, acceptBid);
 
-// 2. PROVIDER SPECIFIC ROUTES (Paths Fixed ✅)
-router.get('/provider/requests', protect, getProviderRequests); // Pending Jobs
-router.get('/provider/accepted', protect, getProviderBookings); // My Jobs
+// 4. Rate Provider (After Job Completion)
+router.put('/rate/:bookingId', authMiddleware, submitRating);
 
-// 3. JOB ACTIONS
-router.put('/:id/accept', protect, acceptJob);       
-router.put('/:id/status', protect, updateJobStatus); 
 
-// 4. SECURITY (OTP)
-router.post('/:id/verify-otp', protect, verifyOtp);  
+// ==========================================
+// 🛠️ PROVIDER (MISTRI) ROUTES
+// ==========================================
 
-// 5. EXTRAS (Rating & Warranty)
-router.put('/:id/rate', protect, submitRating); // PUT method better for update
-router.get('/warranty/:id', protect, getWarranty);
+// 5. Place a Bid (For Bidding Jobs)
+router.post('/bid/:bookingId', authMiddleware, placeBid);
 
-// =============================================
-// 📹 PUBLIC VIDEO ROUTES (Reels)
-// =============================================
-router.get('/videos/featured', getFeaturedVideos); 
-router.get('/videos/feed', getAllVideoFeed);
+// 6. Accept Fixed Job (Instant Booking)
+router.put('/accept/:bookingId', authMiddleware, acceptFixedJob);
 
-// =============================================
-// 📊 PROVIDER STATS (Dashboard Logic)
-// =============================================
-router.get('/provider/stats', protect, async (req, res) => {
-    try {
-        const bookings = await Booking.find({ 
-            provider: req.user._id, 
-            status: 'completed' 
-        }).populate('user', 'name');
+// 7. Update Job Status (Start Work / In Progress)
+router.put('/status/:bookingId', authMiddleware, updateStatus);
 
-        let totalRating = 0;
-        let ratedBookings = 0;
-        let workGallery = [];
+// 8. Verify OTP (To Start Job securely)
+router.post('/verify-otp/:bookingId', authMiddleware, verifyOtp);
 
-        bookings.forEach(b => {
-            if (b.rating > 0) {
-                totalRating += b.rating;
-                ratedBookings++;
-            }
-            if (b.providerVideo) {
-                workGallery.push({
-                    video: b.providerVideo,
-                    rating: b.rating || 0,
-                    review: b.review || "No Review",
-                    customer: b.user ? b.user.name : "Customer",
-                    date: b.createdAt
-                });
-            }
-        });
-
-        const avgRating = ratedBookings > 0 ? (totalRating / ratedBookings).toFixed(1) : "0.0";
-
-        res.json({
-            totalJobs: bookings.length,
-            averageRating: avgRating,
-            totalReviews: ratedBookings,
-            gallery: workGallery.reverse()
-        });
-
-    } catch (err) {
-        console.error("Stats Error:", err);
-        res.status(500).send('Server Error');
-    }
-});
-
-// =============================================
-// 📤 VIDEO UPLOAD ROUTE (Local Storage)
-// =============================================
-router.post('/:id/upload-video', protect, upload.single('video'), async (req, res) => {
-    try {
-        const bookingId = req.params.id;
-        
-        // Render/Server ka URL generate kar rahe hain
-        const videoUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`; 
-        
-        const booking = await Booking.findById(bookingId);
-        if (!booking) return res.status(404).json({ message: "Booking not found" });
-
-        booking.providerVideo = videoUrl;
-        await booking.save();
-        
-        res.json({ success: true, message: "Work Video Uploaded!", videoUrl });
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Video Upload Failed", error: error.message });
-    }
+// 9. Mark Job as Completed
+router.put('/complete/:bookingId', authMiddleware, (req, res, next) => {
+    req.body.status = 'completed'; // Force status to completed
+    updateStatus(req, res, next);
 });
 
 module.exports = router;

@@ -1,90 +1,127 @@
-const mongoose = require('mongoose');
+const Booking = require('../models/Booking');
+const User = require('../models/User');
 
-const bookingSchema = new mongoose.Schema({
-    // 1. Customer (User)
-    user: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User', 
-        required: true 
-    },
+// 📅 1. CREATE BOOKING (User Side)
+exports.createBooking = async (req, res) => {
+    try {
+        const { service, bookingType, scheduleType, address, latitude, longitude, price, items, issue } = req.body;
 
-    // 2. Mistri (Provider) 
-    // shuru mein null rahega, jab provider accept karega tab update hoga
-    provider: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User' // ⚠️ NOTE: Agar tera Provider model alag hai to 'Provider' likh, warna 'User' hi rakh
-    },
-    
-    // Main Category (e.g., AC Repair)
-    service: { type: String, required: true },
+        const newBooking = new Booking({
+            user: req.user._id,
+            service,
+            bookingType,
+            scheduleType,
+            address,
+            location: { type: 'Point', coordinates: [longitude, latitude] }, // GeoJSON
+            price: bookingType === 'FIXED' ? price : 0, // Fixed hai to price save karo, warna 0
+            items,
+            issue,
+            status: bookingType === 'BIDDING' ? 'bidding' : 'pending'
+        });
 
-    // ✅ ITEM DETAILS (Flexible: Array or String)
-    // Flutter se agar object array aa raha hai to ye use hoga
-    items: [
-        {
-            title: String, // Split AC
-            qty: Number    // 2
+        await newBooking.save();
+        res.status(201).json({ message: "Booking Created", booking: newBooking });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// 📋 2. GET MY BOOKINGS (User Side)
+exports.getMyBookings = async (req, res) => {
+    try {
+        const bookings = await Booking.find({ user: req.user._id })
+            .populate('provider', 'name image phone rating') // Provider details
+            .populate('bids.provider', 'name image rating') // Bidders details
+            .sort({ createdAt: -1 });
+        res.json(bookings);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// 🔨 3. PLACE BID (Provider Side)
+exports.placeBid = async (req, res) => {
+    try {
+        const { bookingId } = req.params;
+        const { bidAmount, message } = req.body;
+
+        const booking = await Booking.findById(bookingId);
+        if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+        // Add Bid
+        booking.bids.push({
+            provider: req.user._id,
+            amount: bidAmount,
+            message
+        });
+        
+        await booking.save();
+        res.json({ message: "Bid Placed Successfully!" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// ✅ 4. ACCEPT BID (User Side)
+exports.acceptBid = async (req, res) => {
+    try {
+        const { bookingId } = req.params;
+        const { selectedProviderId, finalPrice } = req.body;
+
+        const booking = await Booking.findById(bookingId);
+        if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+        booking.provider = selectedProviderId;
+        booking.price = finalPrice;
+        booking.status = 'accepted';
+        booking.otp = Math.floor(1000 + Math.random() * 9000).toString(); // Generate 4-digit OTP
+
+        await booking.save();
+        res.json({ message: "Provider Hired!", booking });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// 👷 5. ACCEPT FIXED JOB (Provider Side)
+exports.acceptFixedJob = async (req, res) => {
+    try {
+        const { bookingId } = req.params;
+        const booking = await Booking.findById(bookingId);
+
+        if (!booking) return res.status(404).json({ message: "Job not found" });
+        if (booking.status !== 'pending') return res.status(400).json({ message: "Job already taken" });
+
+        booking.provider = req.user._id;
+        booking.status = 'accepted';
+        booking.otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+        await booking.save();
+        res.json({ message: "Job Accepted!" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// 🔄 6. UPDATE STATUS (Start/Complete)
+exports.updateStatus = async (req, res) => {
+    try {
+        const { bookingId } = req.params;
+        const { status } = req.body; // 'in_progress' or 'completed'
+
+        const booking = await Booking.findById(bookingId);
+        if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+        booking.status = status;
+        await booking.save();
+
+        // Agar Complete hua hai, to Provider ke wallet me paisa add karo (Optional logic)
+        if (status === 'completed') {
+             // Wallet logic future me providerController me handle hoga
         }
-    ],
-    // Flutter se agar simple text aa raha hai (e.g. "2 Split AC repair") to ye use hoga
-    itemsSummary: { type: String }, 
-    
-    // Issue Description
-    issue: { type: String }, 
-    
-    // 📍 ADDRESS & TIME
-    address: { type: String, required: true },
-    location: {
-        lat: Number,
-        lng: Number
-    },
-    scheduledDate: { type: String }, // e.g., "12 Aug"
-    scheduledTime: { type: String }, // e.g., "10:00 AM"
 
-    // 💰 PRICE & BIDDING SYSTEM
-    price: { type: Number, default: 0 }, // Final decided price
-    
-    // 👇 NEW: Bids Array (Taaki multiple providers boli laga sakein)
-    bids: [
-        {
-            provider: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-            amount: { type: Number },
-            message: { type: String },
-            createdAt: { type: Date, default: Date.now }
-        }
-    ],
-
-    // 💳 PAYMENT STATUS (Flutter Payment Screen ke liye)
-    paymentStatus: {
-        type: String,
-        enum: ['pending', 'paid', 'failed'],
-        default: 'pending'
-    },
-    paymentMode: { type: String }, // 'cash', 'online', 'upi'
-    
-    // Status Flow
-    status: { 
-        type: String, 
-        enum: ['pending', 'bidding', 'accepted', 'in_progress', 'completed', 'cancelled'],
-        default: 'pending' 
-    },
-
-    // 🔐 SECURITY (OTP Logic)
-    // Job shuru karne ke liye OTP (User Provider ko dega)
-    otp: { type: String }, 
-    
-    // ⭐ FEEDBACK
-    rating: { type: Number, default: 0 },
-    review: { type: String },
-
-    // 🛡️ WARRANTY CARD (Flutter Warranty Screen ke liye)
-    warrantyId: { type: String },
-    warrantyExpiry: { type: Date },
-
-    // 🎥 VIDEO PROOF (Flutter Reels Screen ke liye)
-    providerVideo: { type: String }, // URL of the video uploaded by provider
-
-    createdAt: { type: Date, default: Date.now }
-});
-
-module.exports = mongoose.model('Booking', bookingSchema);
+        res.json({ message: "Status Updated", status });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
