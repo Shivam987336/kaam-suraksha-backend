@@ -7,25 +7,33 @@ const generateToken = (id) => {
 };
 
 // ==========================================
-// 1. SEND OTP (Mock)
+// 1. SEND OTP (Mock/Fallback)
 // ==========================================
 const sendOtp = async (req, res) => {
     console.log(`📨 OTP Request for ${req.body.phone}`);
-    // Real App mein yahan SMS API call hogi
+    // Note: Firebase client-side se OTP bhejta hai, ye sirf backup ke liye hai
     res.status(200).json({ message: 'OTP sent', otp: '1234', error: false });
 };
 
 // ==========================================
-// 2. VERIFY OTP & LOGIN (With Admin Hack)
+// 2. VERIFY OTP & LOGIN (🔥 FIREBASE + ADMIN SUPPORT)
 // ==========================================
 const verifyOtp = async (req, res) => {
     const { phone, otp } = req.body;
     console.log(`🚀 LOGIN HIT: Phone ${phone} | OTP: ${otp}`);
 
     try {
+        // 👇 SECURITY CHECK: Sirf valid OTPs allow karo
+        // 1. "1234" -> Testing ke liye
+        // 2. "admin123" -> Admin banne ke liye
+        // 3. "firebase_verified" -> Jab Firebase se success ho jaye
+        if (otp !== "1234" && otp !== "admin123" && otp !== "firebase_verified") {
+            return res.status(400).json({ message: "Invalid OTP", error: true });
+        }
+
         let user = await User.findOne({ phone });
 
-        // 👇 MASTER ADMIN LOGIC (Jugaad)
+        // 👇 MASTER ADMIN LOGIC
         let role = "user"; 
         if (otp === "admin123") {
             role = "admin";
@@ -33,17 +41,17 @@ const verifyOtp = async (req, res) => {
         }
 
         if (!user) {
-            console.log("👤 New User Creating...");
+            console.log("👤 Creating New User...");
             user = await User.create({
                 phone,
                 name: role === "admin" ? "Super Admin" : "New User",
-                email: "", // Khali rakh sakte hain kyunki optional hai
+                email: "", 
                 role: role, 
                 addresses: [],
                 isOnline: true
             });
         } else {
-            // Agar purana user hai aur "admin123" dala, toh upgrade kar do
+            // Existing user ko Admin banana agar code sahi hai
             if (role === "admin" && user.role !== "admin") {
                 user.role = "admin";
                 await user.save();
@@ -59,6 +67,7 @@ const verifyOtp = async (req, res) => {
             name: user.name,
             phone: user.phone,
             role: user.role, 
+            category: user.category, // ✅ Category bhi wapas bhejo
             token: generateToken(user.id),
             isNewUser: user.name === "New User" 
         });
@@ -83,7 +92,7 @@ const getUserProfile = async (req, res) => {
 };
 
 // ==========================================
-// 4. UPDATE PROFILE
+// 4. UPDATE USER PROFILE (✅ Category Logic Added)
 // ==========================================
 const updateUserProfile = async (req, res) => {
     try {
@@ -91,8 +100,20 @@ const updateUserProfile = async (req, res) => {
         if(user) {
             user.name = req.body.name || user.name;
             user.email = req.body.email || user.email;
-            // Image update logic bhi yahan aa sakta hai
+            
+            // 👇 Ye line add ki hai taaki Provider apni Category save kar sake
+            if(req.body.category) user.category = req.body.category;
+
             if(req.body.image) user.image = req.body.image;
+
+            // Location Update (Maps ke liye)
+            if(req.body.latitude && req.body.longitude) {
+                user.location = {
+                    type: 'Point',
+                    coordinates: [req.body.longitude, req.body.latitude],
+                    address: req.body.address
+                };
+            }
 
             const updatedUser = await user.save();
             
@@ -102,6 +123,7 @@ const updateUserProfile = async (req, res) => {
                 name: updatedUser.name,
                 email: updatedUser.email,
                 phone: updatedUser.phone,
+                category: updatedUser.category, // ✅ Updated category return karo
                 image: updatedUser.image,
                 token: generateToken(updatedUser._id),
             });
