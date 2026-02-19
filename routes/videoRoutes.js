@@ -3,7 +3,9 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const Booking = require('../models/Booking');
-const authMiddleware = require('../middleware/authMiddleware');
+
+// 🛠️ YAHAN THI GALTI: Object mein se 'protect' nikal liya
+const { protect } = require('../middleware/authMiddleware');
 
 // ==========================================
 // 🛠️ MULTER CONFIGURATION (File Storage Logic)
@@ -39,7 +41,8 @@ const upload = multer({
 // API: POST /api/videos/upload/:bookingId
 // Body: Form-Data (Key: 'video')
 // ==========================================
-router.post('/upload/:bookingId', authMiddleware, upload.single('video'), async (req, res) => {
+// ✅ FIX: authMiddleware ki jagah protect laga diya
+router.post('/upload/:bookingId', protect, upload.single('video'), async (req, res) => {
     try {
         const { bookingId } = req.params;
 
