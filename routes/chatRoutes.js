@@ -1,13 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const Message = require('../models/Message');
-const authMiddleware = require('../middleware/authMiddleware'); // Apne auth middleware ka sahi path check kar lena
+
+// 🛠️ YAHAN THI GALTI: Object mein se 'protect' function nikal liya
+const { protect } = require('../middleware/authMiddleware');
 
 // ==========================================
 // 📥 1. GET MESSAGES (Chat Load karne ke liye)
 // API: GET /api/chat/:bookingId
 // ==========================================
-router.get('/:bookingId', authMiddleware, async (req, res) => {
+// ✅ FIX: authMiddleware ki jagah protect laga diya
+router.get('/:bookingId', protect, async (req, res) => {
   try {
     const { bookingId } = req.params;
 
@@ -25,7 +28,8 @@ router.get('/:bookingId', authMiddleware, async (req, res) => {
 // 📤 2. SEND MESSAGE (Naya Message bhejne ke liye)
 // API: POST /api/chat/send
 // ==========================================
-router.post('/send', authMiddleware, async (req, res) => {
+// ✅ FIX: authMiddleware ki jagah protect laga diya
+router.post('/send', protect, async (req, res) => {
   try {
     const { bookingId, message } = req.body;
 
