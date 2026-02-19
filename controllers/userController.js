@@ -12,7 +12,7 @@ const generateToken = (id) => {
 const sendOtp = async (req, res) => {
     console.log(`📨 OTP Request for ${req.body.phone}`);
     // Note: Firebase client-side se OTP bhejta hai, ye sirf backup ke liye hai
-    res.status(200).json({ message: 'OTP sent', otp: '1234', error: false });
+    return res.status(200).json({ message: 'OTP sent', otp: '1234', error: false });
 };
 
 // ==========================================
@@ -24,9 +24,6 @@ const verifyOtp = async (req, res) => {
 
     try {
         // 👇 SECURITY CHECK: Sirf valid OTPs allow karo
-        // 1. "1234" -> Testing ke liye
-        // 2. "admin123" -> Admin banne ke liye
-        // 3. "firebase_verified" -> Jab Firebase se success ho jaye
         if (otp !== "1234" && otp !== "admin123" && otp !== "firebase_verified") {
             return res.status(400).json({ message: "Invalid OTP", error: true });
         }
@@ -61,20 +58,21 @@ const verifyOtp = async (req, res) => {
 
         console.log(`✅ Login Success as ${user.role}!`);
         
-        res.json({
+        // ✅ FIX: 'return' lagana zaroori hai
+        return res.json({
             error: false,
             _id: user.id,
             name: user.name,
             phone: user.phone,
             role: user.role, 
-            category: user.category, // ✅ Category bhi wapas bhejo
+            category: user.category, 
             token: generateToken(user.id),
             isNewUser: user.name === "New User" 
         });
 
     } catch (error) {
         console.error("❌ DB Error:", error);
-        res.status(500).json({ message: "Server Error", error: true });
+        return res.status(500).json({ message: "Server Error", error: true });
     }
 };
 
@@ -84,10 +82,10 @@ const verifyOtp = async (req, res) => {
 const getUserProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
-        if(user) res.json(user); 
-        else res.status(404).json({ message: 'User not found', error: true });
+        if(user) return res.json(user); 
+        else return res.status(404).json({ message: 'User not found', error: true });
     } catch (error) {
-        res.status(500).json({ message: 'Server Error', error: true });
+        return res.status(500).json({ message: 'Server Error', error: true });
     }
 };
 
@@ -117,7 +115,7 @@ const updateUserProfile = async (req, res) => {
 
             const updatedUser = await user.save();
             
-            res.json({
+            return res.json({
                 error: false,
                 _id: updatedUser._id,
                 name: updatedUser.name,
@@ -128,10 +126,10 @@ const updateUserProfile = async (req, res) => {
                 token: generateToken(updatedUser._id),
             });
         } else {
-            res.status(404).json({ message: 'User not found', error: true });
+            return res.status(404).json({ message: 'User not found', error: true });
         }
     } catch (error) {
-        res.status(500).json({ message: 'Server Error', error: true });
+        return res.status(500).json({ message: 'Server Error', error: true });
     }
 };
 
@@ -145,12 +143,12 @@ const addAddress = async (req, res) => {
             if(!user.addresses) user.addresses = [];
             user.addresses.push(req.body);
             await user.save();
-            res.json(user.addresses);
+            return res.json(user.addresses);
         } else {
-            res.status(404).json({ message: 'User not found', error: true });
+            return res.status(404).json({ message: 'User not found', error: true });
         }
     } catch (error) {
-        res.status(500).json({ message: error.message, error: true });
+        return res.status(500).json({ message: error.message, error: true });
     }
 };
 
@@ -163,12 +161,12 @@ const deleteAddress = async (req, res) => {
         if(user && user.addresses) {
             user.addresses = user.addresses.filter(a => a._id.toString() !== req.params.id);
             await user.save();
-            res.json(user.addresses);
+            return res.json(user.addresses);
         } else {
-            res.status(404).json({ message: 'User not found', error: true });
+            return res.status(404).json({ message: 'User not found', error: true });
         }
     } catch (error) {
-        res.status(500).json({ message: error.message, error: true });
+        return res.status(500).json({ message: error.message, error: true });
     }
 };
 
