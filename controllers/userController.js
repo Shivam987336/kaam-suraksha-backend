@@ -7,105 +7,107 @@ const generateToken = (id) => {
 };
 
 // ==========================================
-// 1. SEND OTP (Mock/Fallback)
+// 1️⃣ SEND OTP (Only for compatibility)
 // ==========================================
 const sendOtp = async (req, res) => {
-    console.log(`📨 OTP Request for ${req.body.phone}`);
-    // Note: Firebase client-side se OTP bhejta hai, ye sirf backup ke liye hai
-    return res.status(200).json({ message: 'OTP sent', otp: '1234', error: false });
+    return res.status(200).json({
+        message: "OTP handled by Firebase",
+        error: false
+    });
 };
 
 // ==========================================
-// 2. VERIFY OTP & LOGIN (🔥 FIREBASE + ADMIN SUPPORT)
+// 2️⃣ VERIFY OTP & LOGIN (Firebase Based)
 // ==========================================
 const verifyOtp = async (req, res) => {
-    const { phone, otp } = req.body;
-    console.log(`🚀 LOGIN HIT: Phone ${phone} | OTP: ${otp}`);
+    const { phone } = req.body;
+
+    console.log(`🚀 LOGIN HIT: Phone ${phone}`);
 
     try {
-        // 👇 SECURITY CHECK: Sirf valid OTPs allow karo
-        if (otp !== "1234" && otp !== "admin123" && otp !== "firebase_verified") {
-            return res.status(400).json({ message: "Invalid OTP", error: true });
+        if (!phone) {
+            return res.status(400).json({
+                message: "Phone number required",
+                error: true
+            });
         }
 
         let user = await User.findOne({ phone });
 
-        // 👇 MASTER ADMIN LOGIC
-        let role = "user"; 
-        if (otp === "admin123") {
-            role = "admin";
-            console.log("👑 MASTER PASSWORD USED: ADMIN ACCESS GRANTED!");
-        }
-
+        // 👤 Create new user if not exists
         if (!user) {
             console.log("👤 Creating New User...");
             user = await User.create({
                 phone,
-                name: role === "admin" ? "Super Admin" : "New User",
-                email: "", 
-                role: role, 
+                name: "New User",
+                email: "",
+                role: "user",
                 addresses: [],
                 isOnline: true
             });
-        } else {
-            // Existing user ko Admin banana agar code sahi hai
-            if (role === "admin" && user.role !== "admin") {
-                user.role = "admin";
-                await user.save();
-                console.log("⚡ Existing User Upgraded to Admin!");
-            }
         }
 
-        console.log(`✅ Login Success as ${user.role}!`);
-        
-        // ✅ FIX: 'return' lagana zaroori hai
-        return res.json({
+        console.log(`✅ Login Success as ${user.role}`);
+
+        return res.status(200).json({
             error: false,
-            _id: user.id,
+            _id: user._id,
             name: user.name,
             phone: user.phone,
-            role: user.role, 
-            category: user.category, 
-            token: generateToken(user.id),
-            isNewUser: user.name === "New User" 
+            role: user.role,
+            token: generateToken(user._id),
+            isNewUser: user.name === "New User"
         });
 
     } catch (error) {
         console.error("❌ DB Error:", error);
-        return res.status(500).json({ message: "Server Error", error: true });
+        return res.status(500).json({
+            message: "Server Error",
+            error: true
+        });
     }
 };
 
 // ==========================================
-// 3. GET USER PROFILE
+// 3️⃣ GET USER PROFILE
 // ==========================================
 const getUserProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
-        if(user) return res.json(user); 
-        else return res.status(404).json({ message: 'User not found', error: true });
+        if (user) {
+            return res.json(user);
+        } else {
+            return res.status(404).json({
+                message: "User not found",
+                error: true
+            });
+        }
     } catch (error) {
-        return res.status(500).json({ message: 'Server Error', error: true });
+        return res.status(500).json({
+            message: "Server Error",
+            error: true
+        });
     }
 };
 
 // ==========================================
-// 4. UPDATE USER PROFILE (✅ Category Logic Added)
+// 4️⃣ UPDATE USER PROFILE
 // ==========================================
 const updateUserProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
-        if(user) {
+
+        if (user) {
             user.name = req.body.name || user.name;
             user.email = req.body.email || user.email;
-            
-            // 👇 Ye line add ki hai taaki Provider apni Category save kar sake
-            if(req.body.category) user.category = req.body.category;
 
-            if(req.body.image) user.image = req.body.image;
+            if (req.body.category)
+                user.category = req.body.category;
 
-            // Location Update (Maps ke liye)
-            if(req.body.latitude && req.body.longitude) {
+            if (req.body.image)
+                user.image = req.body.image;
+
+            if (req.body.latitude && req.body.longitude) {
                 user.location = {
                     type: 'Point',
                     coordinates: [req.body.longitude, req.body.latitude],
@@ -114,67 +116,90 @@ const updateUserProfile = async (req, res) => {
             }
 
             const updatedUser = await user.save();
-            
+
             return res.json({
                 error: false,
                 _id: updatedUser._id,
                 name: updatedUser.name,
                 email: updatedUser.email,
                 phone: updatedUser.phone,
-                category: updatedUser.category, // ✅ Updated category return karo
+                category: updatedUser.category,
                 image: updatedUser.image,
                 token: generateToken(updatedUser._id),
             });
         } else {
-            return res.status(404).json({ message: 'User not found', error: true });
+            return res.status(404).json({
+                message: "User not found",
+                error: true
+            });
         }
     } catch (error) {
-        return res.status(500).json({ message: 'Server Error', error: true });
+        return res.status(500).json({
+            message: "Server Error",
+            error: true
+        });
     }
 };
 
 // ==========================================
-// 5. ADD ADDRESS
+// 5️⃣ ADD ADDRESS
 // ==========================================
 const addAddress = async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
-        if(user) {
-            if(!user.addresses) user.addresses = [];
+
+        if (user) {
+            if (!user.addresses) user.addresses = [];
             user.addresses.push(req.body);
             await user.save();
             return res.json(user.addresses);
         } else {
-            return res.status(404).json({ message: 'User not found', error: true });
+            return res.status(404).json({
+                message: "User not found",
+                error: true
+            });
         }
     } catch (error) {
-        return res.status(500).json({ message: error.message, error: true });
+        return res.status(500).json({
+            message: error.message,
+            error: true
+        });
     }
 };
 
 // ==========================================
-// 6. DELETE ADDRESS
+// 6️⃣ DELETE ADDRESS
 // ==========================================
 const deleteAddress = async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
-        if(user && user.addresses) {
-            user.addresses = user.addresses.filter(a => a._id.toString() !== req.params.id);
+
+        if (user && user.addresses) {
+            user.addresses = user.addresses.filter(
+                (a) => a._id.toString() !== req.params.id
+            );
+
             await user.save();
             return res.json(user.addresses);
         } else {
-            return res.status(404).json({ message: 'User not found', error: true });
+            return res.status(404).json({
+                message: "User not found",
+                error: true
+            });
         }
     } catch (error) {
-        return res.status(500).json({ message: error.message, error: true });
+        return res.status(500).json({
+            message: error.message,
+            error: true
+        });
     }
 };
 
-module.exports = { 
-    sendOtp, 
-    verifyOtp, 
-    getUserProfile, 
-    updateUserProfile, 
-    addAddress, 
-    deleteAddress 
+module.exports = {
+    sendOtp,
+    verifyOtp,
+    getUserProfile,
+    updateUserProfile,
+    addAddress,
+    deleteAddress
 };
