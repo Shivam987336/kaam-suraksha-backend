@@ -25,9 +25,10 @@ const verifyOtp = async (req, res) => {
     console.log(`🚀 LOGIN HIT: Phone ${phone}`);
 
     try {
-        if (!phone) {
+        // 🛡️ Security Fix: Check if phone exists and is a string
+        if (!phone || typeof phone !== 'string') {
             return res.status(400).json({
-                message: "Phone number required",
+                message: "Valid Phone number required",
                 error: true
             });
         }
@@ -41,7 +42,7 @@ const verifyOtp = async (req, res) => {
                 phone,
                 name: "New User",
                 email: "",
-                role: "user",
+                role: "user", // Default role safe hai
                 addresses: [],
                 isOnline: true
             });
@@ -73,9 +74,10 @@ const verifyOtp = async (req, res) => {
 // ==========================================
 const getUserProfile = async (req, res) => {
     try {
+        // 🛡️ User ID find karte waqt dhyan rakha
         const user = await User.findById(req.user._id);
         if (user) {
-            return res.json(user);
+            return res.status(200).json(user);
         } else {
             return res.status(404).json({
                 message: "User not found",
@@ -98,26 +100,23 @@ const updateUserProfile = async (req, res) => {
         const user = await User.findById(req.user._id);
 
         if (user) {
-            user.name = req.body.name || user.name;
-            user.email = req.body.email || user.email;
-
-            if (req.body.category)
-                user.category = req.body.category;
-
-            if (req.body.image)
-                user.image = req.body.image;
+            // 🛡️ Security Fix: Sirf wahi fields update hongi jo allowed hain (No Role bypass)
+            if (req.body.name) user.name = req.body.name;
+            if (req.body.email) user.email = req.body.email;
+            if (req.body.category) user.category = req.body.category;
+            if (req.body.image) user.image = req.body.image;
 
             if (req.body.latitude && req.body.longitude) {
                 user.location = {
                     type: 'Point',
                     coordinates: [req.body.longitude, req.body.latitude],
-                    address: req.body.address
+                    address: req.body.address || user.location?.address
                 };
             }
 
             const updatedUser = await user.save();
 
-            return res.json({
+            return res.status(200).json({
                 error: false,
                 _id: updatedUser._id,
                 name: updatedUser.name,
@@ -142,7 +141,7 @@ const updateUserProfile = async (req, res) => {
 };
 
 // ==========================================
-// 5️⃣ ADD ADDRESS
+// 5️⃣ ADD ADDRESS (Fully Secured)
 // ==========================================
 const addAddress = async (req, res) => {
     try {
@@ -150,9 +149,32 @@ const addAddress = async (req, res) => {
 
         if (user) {
             if (!user.addresses) user.addresses = [];
-            user.addresses.push(req.body);
+            
+            // 🛡️ Security Fix: Extract ONLY the allowed fields from req.body
+            // Taki koi extra data database mein ghus na sake
+            const { type, name, phone, address, city, pincode } = req.body;
+
+            // 🛡️ Basic Validation: Zaroori cheezein check karo
+            if (!address || !city || !pincode) {
+                return res.status(400).json({
+                    message: "Address, City and Pincode are required",
+                    error: true
+                });
+            }
+
+            const newAddress = {
+                type: type || 'Other',
+                name: name || user.name, // Agar name nahi aaya to user ka naam daal do
+                phone: phone || user.phone, // Agar phone nahi aaya to user ka phone daal do
+                address,
+                city,
+                pincode
+            };
+
+            user.addresses.push(newAddress);
             await user.save();
-            return res.json(user.addresses);
+            
+            return res.status(200).json(user.addresses);
         } else {
             return res.status(404).json({
                 message: "User not found",
@@ -175,12 +197,13 @@ const deleteAddress = async (req, res) => {
         const user = await User.findById(req.user._id);
 
         if (user && user.addresses) {
+            // 🛡️ Filter address safely
             user.addresses = user.addresses.filter(
-                (a) => a._id.toString() !== req.params.id
+                (a) => a._id.toString() !== req.params.id.toString()
             );
 
             await user.save();
-            return res.json(user.addresses);
+            return res.status(200).json(user.addresses);
         } else {
             return res.status(404).json({
                 message: "User not found",

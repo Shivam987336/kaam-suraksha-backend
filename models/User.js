@@ -27,11 +27,13 @@ const userSchema = mongoose.Schema(
       default: 'user', 
     },
 
-    // 🏠 CUSTOMER ADDRESSES
+    // 🏠 CUSTOMER ADDRESSES (✅ 100% Fixed & Synced with Flutter)
     addresses: [
       {
-        label: { type: String }, // e.g., "Home", "Office"
-        fullAddress: { type: String }, 
+        type: { type: String, default: 'Other' }, // 'label' ki jagah 'type' kiya
+        name: { type: String },                   // ➕ Naya field (Address owner name)
+        phone: { type: String },                  // ➕ Naya field (Address contact number)
+        address: { type: String },                // 'fullAddress' ki jagah 'address' kiya
         pincode: { type: String },
         city: { type: String }
       }
