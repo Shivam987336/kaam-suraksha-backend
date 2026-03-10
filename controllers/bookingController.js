@@ -18,7 +18,8 @@ exports.createBooking = async (req, res) => {
             service,
             bookingType, // 'FIXED' or 'BIDDING'
             address,
-            location: { type: 'Point', coordinates: [longitude, latitude] }, // GeoJSON
+            // YAHAN MERA FIX HAI 👇 (|| 0 add kar diya hai)
+            location: { type: 'Point', coordinates: [longitude || 0, latitude || 0] }, 
             price: bookingType === 'FIXED' ? price : 0,
             items,
             issue,
