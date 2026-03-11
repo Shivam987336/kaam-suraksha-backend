@@ -8,11 +8,11 @@ const {
     getProviderStats,       // Wallet Balance & Earnings
     withdrawMoney,          // Withdraw Request
     updateProviderProfile,  // Edit Profile
-    toggleStatus            // Online/Offline Switch
+    toggleStatus,           // Online/Offline Switch
+    updateFcmToken          // 🔥 NAYA ADD KIYA: Token update karne ke liye
 } = require('../controllers/providerController');
 
-// 🛠️ YAHAN THI GALTI: Maine Object mein se function nikal liya hai
-// Agar tere middleware me function ka naam 'verifyToken' hai, toh 'protect' ki jagah wo likh dena.
+// 🛠️ Middleware import
 const { protect } = require('../middleware/authMiddleware'); 
 
 // ==========================================
@@ -30,7 +30,6 @@ router.post('/login', verifyProviderOtp);
 
 // Get Nearby Jobs (Pending & Bidding)
 // API: GET /api/providers/jobs
-// ✅ FIX: authMiddleware ki jagah protect laga diya
 router.get('/jobs', protect, getProviderJobs);
 
 // Get Wallet Balance & Stats
@@ -59,5 +58,13 @@ router.put('/status', protect, toggleStatus);
 // Update Profile (Category, Rate, Location)
 // API: PUT /api/providers/update
 router.put('/update', protect, updateProviderProfile);
+
+// ==========================================
+// 🔔 NOTIFICATIONS (FIREBASE)
+// ==========================================
+
+// Update FCM Token (Flutter se token yahan aayega)
+// API: PUT /api/providers/fcm-token
+router.put('/fcm-token', protect, updateFcmToken);
 
 module.exports = router;

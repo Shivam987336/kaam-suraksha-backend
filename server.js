@@ -5,8 +5,23 @@ const connectDB = require('./config/db');
 const path = require('path'); 
 const fs = require('fs');
 
+// 🔥 1. FIREBASE ADMIN IMPORT (Naya add kiya hai)
+const admin = require("firebase-admin");
+
 // 1. Environment Variables Load
 dotenv.config();
+
+// 🔥 2. FIREBASE SETUP LOGIC (Naya add kiya hai)
+try {
+    // Ye line us file ko dhoondhegi jo tune download ki thi
+    const serviceAccount = require("./serviceAccountKey.json");
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+    console.log("🔔 Firebase Notifications System Ready!");
+} catch (error) {
+    console.log("❌ Firebase Error: serviceAccountKey.json file nahi mili ya galat jagah par hai.");
+}
 
 // 2. Database Connection
 connectDB();
@@ -39,8 +54,7 @@ app.use((req, res, next) => {
 // 🔗 ROUTES CONFIGURATION
 // ==========================================
 
-// 🔐 Users (Customer Login, Profile, Address) - ✅ UPDATED
-// Humne authRoutes hata diya hai, ab sab userRoutes se chalega
+// 🔐 Users (Customer Login, Profile, Address)
 app.use('/api/users', require('./routes/userRoutes'));
 
 // 🛠️ Providers (Wallet, Jobs, Status, Login)

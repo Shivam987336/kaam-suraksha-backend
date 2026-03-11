@@ -5,7 +5,7 @@ const userSchema = mongoose.Schema(
     // 👤 BASIC DETAILS
     name: { 
       type: String, 
-      default: "User" // Default naam taaki blank na rahe
+      default: "User" 
     },
     phone: { 
       type: String, 
@@ -27,13 +27,19 @@ const userSchema = mongoose.Schema(
       default: 'user', 
     },
 
+    // 🔔 FIREBASE PUSH NOTIFICATION TOKEN (🔥 Yahan add kiya hai)
+    fcmToken: {
+      type: String,
+      default: ""
+    },
+
     // 🏠 CUSTOMER ADDRESSES (✅ 100% Fixed & Synced with Flutter)
     addresses: [
       {
-        type: { type: String, default: 'Other' }, // 'label' ki jagah 'type' kiya
-        name: { type: String },                   // ➕ Naya field (Address owner name)
-        phone: { type: String },                  // ➕ Naya field (Address contact number)
-        address: { type: String },                // 'fullAddress' ki jagah 'address' kiya
+        type: { type: String, default: 'Other' }, 
+        name: { type: String },                   
+        phone: { type: String },                  
+        address: { type: String },                
         pincode: { type: String },
         city: { type: String }
       }

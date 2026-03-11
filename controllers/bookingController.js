@@ -1,8 +1,9 @@
 const Booking = require('../models/Booking');
 const User = require('../models/User');
+const admin = require('firebase-admin'); // 🔥 FIREBASE IMPORT KIYA HAIN YAHAN
 
 // ==================================================
-// 1. CUSTOMER: CREATE BOOKING (Fixed or Bidding)
+// 1. CUSTOMER: CREATE BOOKING (Fixed or Bidding) + NOTIFICATIONS 🔔
 // ==================================================
 exports.createBooking = async (req, res) => {
     try {
@@ -13,12 +14,13 @@ exports.createBooking = async (req, res) => {
             return res.status(400).json({ message: "Missing required fields" });
         }
 
+        // 1. Database mein Booking Save Karo
         const newBooking = new Booking({
             user: req.user._id,
             service,
             bookingType, // 'FIXED' or 'BIDDING'
             address,
-            // YAHAN MERA FIX HAI 👇 (|| 0 add kar diya hai)
+            // YAHAN TERA FIX HAI 👇 (|| 0 add kar diya hai)
             location: { type: 'Point', coordinates: [longitude || 0, latitude || 0] }, 
             price: bookingType === 'FIXED' ? price : 0,
             items,
@@ -28,6 +30,45 @@ exports.createBooking = async (req, res) => {
         });
 
         await newBooking.save();
+
+        // 🔥 2. FIREBASE NOTIFICATION LOGIC 🔥
+        try {
+            // Aas-paas (10km) ke un providers ko dhoondo jo same category ke hain, online hain aur jinka FCM Token hai
+            const nearbyProviders = await User.find({
+                role: 'provider',
+                category: service,
+                isOnline: true,
+                fcmToken: { $ne: "" }, // Token hona zaroori hai
+                location: {
+                    $near: {
+                        $geometry: { type: "Point", coordinates: [longitude || 0, latitude || 0] },
+                        $maxDistance: 10000 // 10km Radius
+                    }
+                }
+            });
+
+            const tokens = nearbyProviders.map(p => p.fcmToken).filter(token => token);
+
+            // Agar aas-paas koi provider mila, toh sabko ek saath message bhej do
+            if (tokens.length > 0) {
+                const message = {
+                    notification: {
+                        title: `Naya Kaam Aaya Hai: ${service} 🛠️`,
+                        body: `${address} se nayi request aayi hai. Jaldi check karein!`
+                    },
+                    tokens: tokens, 
+                };
+
+                const response = await admin.messaging().sendEachForMulticast(message);
+                console.log(`🔔 Notifications sent successfully: ${response.successCount}`);
+            } else {
+                console.log("⚠️ Koi aas-paas ka provider nahi mila jisko notification bhej sakein.");
+            }
+        } catch (notifError) {
+            console.error("❌ Notification bhejne mein error aaya:", notifError);
+            // Agar notification fail ho jaye, toh bhi booking complete honi chahiye
+        }
+
         res.status(201).json({ message: "Booking Created", booking: newBooking });
     } catch (error) {
         console.error(error);

@@ -61,11 +61,11 @@ exports.getProviderJobs = async (req, res) => {
         }
 
         // 🔍 Logic: 
-        // 1. Same Category ka kaam hona chahiye (🔥 YAHAN MERA FIX HAI)
+        // 1. Same Category ka kaam hona chahiye 
         // 2. Pending ya Bidding wali jobs
         // 3. 10km radius ke andar
         const jobs = await Booking.find({
-            service: provider.category, // <--- YE LINE MISSING THI! 
+            service: provider.category, 
             status: { $in: ['pending', 'bidding'] },
             location: {
                 $near: {
@@ -170,5 +170,31 @@ exports.toggleStatus = async (req, res) => {
         res.json({ success: true, isOnline });
     } catch (error) {
         res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// ==========================================
+// 🔥 7. UPDATE FCM TOKEN (Notifications Ke Liye Zaroori) 🔥
+// ==========================================
+exports.updateFcmToken = async (req, res) => {
+    try {
+        const { fcmToken } = req.body;
+        
+        if (!fcmToken) {
+            return res.status(400).json({ message: "Token missing" });
+        }
+
+        const provider = await User.findById(req.user._id);
+        if (!provider) {
+            return res.status(404).json({ message: "Provider not found" });
+        }
+
+        provider.fcmToken = fcmToken;
+        await provider.save();
+
+        res.json({ message: "FCM Token Updated Successfully", success: true });
+    } catch (error) {
+        console.error("FCM Token Error:", error);
+        res.status(500).json({ error: error.message });
     }
 };
