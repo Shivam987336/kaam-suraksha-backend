@@ -1,4 +1,4 @@
-const User = require('../models/User'); // ✅ Provider model hata diya, User use karenge
+const User = require('../models/User'); 
 const Booking = require('../models/Booking');
 const jwt = require('jsonwebtoken');
 
@@ -13,7 +13,6 @@ const generateToken = (id) => {
 exports.verifyProviderOtp = async (req, res) => {
     const { phone } = req.body;
     try {
-        // 1. User dhoondo (Role check zaroori hai)
         let user = await User.findOne({ phone });
 
         if (!user) {
@@ -21,13 +20,12 @@ exports.verifyProviderOtp = async (req, res) => {
             user = await User.create({
                 phone,
                 name: "New Mistri",
-                role: "provider", // ✅ Role set kiya
+                role: "provider", 
                 category: "Unassigned",
                 isOnline: true,
-                location: { type: 'Point', coordinates: [0, 0] } // Default location
+                location: { type: 'Point', coordinates: [0, 0] } 
             });
         } else {
-            // Agar pehle se user hai par provider nahi hai
             if (user.role !== 'provider') {
                 return res.status(400).json({ message: "This number is registered as a Customer." });
             }
@@ -51,28 +49,28 @@ exports.verifyProviderOtp = async (req, res) => {
 };
 
 // ==========================================
-// 2. DASHBOARD: GET NEARBY JOBS (Request Tab)
+// 2. DASHBOARD: GET NEARBY JOBS (Strictly Filtered by Category & Location)
 // ==========================================
 exports.getProviderJobs = async (req, res) => {
     try {
         const provider = await User.findById(req.user._id);
         
-        // Provider ki Location
         const coordinates = provider.location.coordinates;
-        // Agar location set nahi hai toh empty list bhejo
         if (coordinates[0] === 0 && coordinates[1] === 0) {
             return res.json([]); 
         }
 
         // 🔍 Logic: 
-        // 1. Pending (Fixed) ya Bidding wali jobs
-        // 2. 10km radius ke andar
+        // 1. Same Category ka kaam hona chahiye (🔥 YAHAN MERA FIX HAI)
+        // 2. Pending ya Bidding wali jobs
+        // 3. 10km radius ke andar
         const jobs = await Booking.find({
+            service: provider.category, // <--- YE LINE MISSING THI! 
             status: { $in: ['pending', 'bidding'] },
             location: {
                 $near: {
                     $geometry: { type: "Point", coordinates: coordinates },
-                    $maxDistance: 10000 // 10,000 meters = 10km
+                    $maxDistance: 10000 
                 }
             }
         }).populate('user', 'name address phone image');
@@ -90,7 +88,6 @@ exports.getProviderStats = async (req, res) => {
     try {
         const provider = await User.findById(req.user._id);
         
-        // Completed Jobs count karo
         const completedJobs = await Booking.countDocuments({ 
             provider: req.user._id, 
             status: 'completed' 
@@ -121,10 +118,7 @@ exports.withdrawMoney = async (req, res) => {
             return res.status(400).json({ message: "Insufficient Wallet Balance" });
         }
 
-        // Deduct Money
         provider.walletBalance -= amount;
-        
-        // Transaction History logic yahan add kar sakte ho future mein
         
         await provider.save();
 
@@ -149,7 +143,6 @@ exports.updateProviderProfile = async (req, res) => {
             provider.name = req.body.name || provider.name;
             provider.category = req.body.category || provider.category;
             
-            // Location Update (GeoJSON)
             if (req.body.latitude && req.body.longitude) {
                 provider.location = {
                     type: 'Point',
