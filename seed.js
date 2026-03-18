@@ -6,13 +6,13 @@ const User = require('./models/User');
 dotenv.config();
 
 // ==========================================
-// 🔥 FULL 20 SERVICES DATA (With Professional HD Images)
+// 🔥 FULL 20 SERVICES DATA (With Urban Company Style Vector Icons)
 // ==========================================
 const servicesData = [
     // --- 1. AC & Appliances ---
     {
         name: "AC & Appliance Repair",
-        icon: "https://images.unsplash.com/photo-1581092921461-7d3122c4d445?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/air-conditioner.png",
         subServices: [
             { title: "AC Service", price: 599, time: "45 min" },
             { title: "AC Gas Filling", price: 2499, time: "30 min" },
@@ -23,7 +23,7 @@ const servicesData = [
     // --- 2. Salon (Women) ---
     {
         name: "Women's Salon & Spa",
-        icon: "https://images.unsplash.com/photo-1560944527-a4a429848866?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/cosmetics.png",
         subServices: [
             { title: "Basic Facial", price: 499, time: "45 min" },
             { title: "Hair Cut", price: 299, time: "30 min" },
@@ -34,7 +34,7 @@ const servicesData = [
     // --- 3. Men's Salon ---
     {
         name: "Men's Salon & Massage",
-        icon: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/barbershop.png",
         subServices: [
             { title: "Hair Cut", price: 150, time: "30 min" },
             { title: "Shaving / Beard Trim", price: 100, time: "20 min" },
@@ -45,7 +45,7 @@ const servicesData = [
     // --- 4. Cleaning ---
     {
         name: "House Maid / Cleaning",
-        icon: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/vacuum-cleaner.png",
         subServices: [
             { title: "Full Home Deep Clean", price: 1999, time: "4 hrs" },
             { title: "Bathroom Cleaning", price: 399, time: "45 min" },
@@ -56,7 +56,7 @@ const servicesData = [
     // --- 5. Electrician ---
     {
         name: "Electrician",
-        icon: "https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/electrical.png",
         subServices: [
             { title: "Fan Repair", price: 149, time: "30 min" },
             { title: "Switchboard Installation", price: 99, time: "20 min" },
@@ -67,7 +67,7 @@ const servicesData = [
     // --- 6. Plumber ---
     {
         name: "Plumber",
-        icon: "https://images.unsplash.com/photo-1607472586893-edb57cb31422?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/plumbing.png",
         subServices: [
             { title: "Tap Repair", price: 99, time: "30 min" },
             { title: "Pipe Leakage Fix", price: 249, time: "45 min" },
@@ -78,7 +78,7 @@ const servicesData = [
     // --- 7. Carpenter ---
     {
         name: "Carpenter",
-        icon: "https://images.unsplash.com/photo-1530124566582-a618bc2615dc?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/saw.png",
         subServices: [
             { title: "Door Lock Repair", price: 199, time: "30 min" },
             { title: "Furniture Assembly", price: 399, time: "1 hr" },
@@ -89,7 +89,7 @@ const servicesData = [
     // --- 8. Painter ---
     {
         name: "Painter",
-        icon: "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/paint-roller.png",
         subServices: [
             { title: "Single Room Paint", price: 2499, time: "1 day" },
             { title: "Full House Painting", price: 12000, time: "4 days" },
@@ -99,7 +99,7 @@ const servicesData = [
     // --- 9. Car Wash ---
     {
         name: "Car & Bike Wash",
-        icon: "https://images.unsplash.com/photo-1520340356584-f9917d1eea6f?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/car-wash.png",
         subServices: [
             { title: "Bike Foam Wash", price: 99, time: "20 min" },
             { title: "Car Exterior Wash", price: 299, time: "40 min" },
@@ -110,7 +110,7 @@ const servicesData = [
     // --- 10. Cook ---
     {
         name: "Cook / Tiffin Service",
-        icon: "https://images.unsplash.com/photo-1556910103-1c02745a872f?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/cooking-pot.png",
         subServices: [
             { title: "One Time Meal (4 People)", price: 300, time: "1.5 hrs" },
             { title: "Monthly Lunch Tiffin", price: 2500, time: "Monthly" },
@@ -120,7 +120,7 @@ const servicesData = [
     // --- 11. Pest Control ---
     {
         name: "Pest Control",
-        icon: "https://images.unsplash.com/photo-1584061849841-e9b4070a7b6d?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/bug.png",
         subServices: [
             { title: "Cockroach Control (1BHK)", price: 899, time: "1 hr" },
             { title: "Termite Treatment", price: 2999, time: "3 hrs" },
@@ -130,7 +130,7 @@ const servicesData = [
     // --- 12. RO Service ---
     {
         name: "RO / Water Purifier",
-        icon: "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/water-dispenser.png",
         subServices: [
             { title: "RO Service", price: 399, time: "45 min" },
             { title: "Filter Change", price: 899, time: "30 min" },
@@ -140,7 +140,7 @@ const servicesData = [
     // --- 13. Shifting ---
     {
         name: "Shifting Labour",
-        icon: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/truck.png",
         subServices: [
             { title: "1 Helper (Loading/Unloading)", price: 400, time: "2 hrs" },
             { title: "Mini Tempo + 1 Helper", price: 1500, time: "Trip" },
@@ -150,7 +150,7 @@ const servicesData = [
     // --- 14. Driver ---
     {
         name: "Driver on Demand",
-        icon: "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/steering-wheel.png",
         subServices: [
             { title: "Driver for 4 Hours", price: 400, time: "4 hrs" },
             { title: "Driver for 8 Hours", price: 700, time: "8 hrs" },
@@ -160,7 +160,7 @@ const servicesData = [
     // --- 15. Pandit Ji ---
     {
         name: "Pandit Ji",
-        icon: "https://images.unsplash.com/photo-1552596950-e88102f068c5?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/om.png",
         subServices: [
             { title: "Satyanarayan Katha", price: 1100, time: "2 hrs" },
             { title: "Griha Pravesh", price: 2100, time: "3 hrs" },
@@ -170,7 +170,7 @@ const servicesData = [
     // --- 16. Nurse ---
     {
         name: "Home Nurse",
-        icon: "https://images.unsplash.com/photo-1584515933487-779824d29309?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/nurse.png",
         subServices: [
             { title: "Injection Service", price: 150, time: "15 min" },
             { title: "Dressing / Wound Care", price: 300, time: "30 min" },
@@ -180,7 +180,7 @@ const servicesData = [
     // --- 17. Elder Care ---
     {
         name: "Elder Care",
-        icon: "https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/family.png",
         subServices: [
             { title: "Attendant (Day)", price: 800, time: "10 hrs" },
             { title: "Attendant (Night)", price: 1000, time: "12 hrs" }
@@ -189,7 +189,7 @@ const servicesData = [
     // --- 18. Baby Sitter ---
     {
         name: "Baby Sitter / Nanny",
-        icon: "https://images.unsplash.com/photo-1516627145497-ae6968895b74?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/baby-carriage.png",
         subServices: [
             { title: "Nanny for 4 Hours", price: 500, time: "4 hrs" },
             { title: "Full Day Babysitting", price: 1000, time: "10 hrs" }
@@ -198,7 +198,7 @@ const servicesData = [
     // --- 19. Mobile/Laptop ---
     {
         name: "Mobile & Laptop Repair",
-        icon: "https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/laptop.png",
         subServices: [
             { title: "Mobile Screen Guard", price: 150, time: "10 min" },
             { title: "Laptop OS Installation", price: 499, time: "1 hr" },
@@ -208,7 +208,7 @@ const servicesData = [
     // --- 20. Security ---
     {
         name: "Security Guard",
-        icon: "https://images.unsplash.com/photo-1614094042458-9419b4a1fb5f?w=800&q=80",
+        icon: "https://img.icons8.com/fluency/96/security-guard.png",
         subServices: [
             { title: "Guard for Function (8 hrs)", price: 900, time: "8 hrs" },
             { title: "Night Watchman", price: 1200, time: "12 hrs" }
@@ -263,7 +263,7 @@ const importData = async () => {
     await User.insertMany(providersData);
     console.log('✅ Dummy Providers Added!');
 
-    console.log('🎉 SUCCESS! Database Ready Hai with HD Images!');
+    console.log('🎉 SUCCESS! Database Ready Hai with Urban Company Style Images!');
     process.exit();
   } catch (error) {
     console.error(`❌ Error: ${error.message}`);
