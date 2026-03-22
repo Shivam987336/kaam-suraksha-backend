@@ -5,15 +5,14 @@ const connectDB = require('./config/db');
 const path = require('path'); 
 const fs = require('fs');
 
-// 🔥 1. FIREBASE ADMIN IMPORT (Naya add kiya hai)
+// 🔥 1. FIREBASE ADMIN IMPORT
 const admin = require("firebase-admin");
 
 // 1. Environment Variables Load
 dotenv.config();
 
-// 🔥 2. FIREBASE SETUP LOGIC (Naya add kiya hai)
+// 🔥 2. FIREBASE SETUP LOGIC
 try {
-    // Ye line us file ko dhoondhegi jo tune download ki thi
     const serviceAccount = require("./serviceAccountKey.json");
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount)
@@ -32,7 +31,7 @@ const PORT = process.env.PORT || 5000;
 // ==========================================
 // 🛠️ MIDDLEWARE
 // ==========================================
-app.use(cors()); // Flutter/Mobile connectivity ke liye
+app.use(cors()); // Flutter/Mobile aur React Web connectivity ke liye
 app.use(express.json()); // JSON data handle karne ke liye
 
 // 📁 UPLOADS FOLDER CHECK (Images & Videos ke liye)
@@ -41,7 +40,7 @@ if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
 }
 
-// 🎥 Uploads folder ko Public banana (Taaki Flutter me Videos dikhein)
+// 🎥 Uploads folder ko Public banana (Taaki Flutter me photos/videos dikhein)
 app.use('/uploads', express.static(uploadDir));
 
 // 🕵️‍♂️ Debug Logger (Request track karne ke liye)
@@ -53,6 +52,9 @@ app.use((req, res, next) => {
 // ==========================================
 // 🔗 ROUTES CONFIGURATION
 // ==========================================
+
+// 👑 ADMIN / CEO ROUTES (🔥🔥 YAHAN ADD KIYA HAI DASHBOARD KE LIYE 🔥🔥)
+app.use('/api/admin', require('./routes/adminRoutes'));
 
 // 🔐 Users (Customer Login, Profile, Address)
 app.use('/api/users', require('./routes/userRoutes'));
